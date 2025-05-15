@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>移位结构可视化（多条箭头）</title>
+  <style>
+  body {
+  font-family: "STZhongsong", "Times New Roman", serif;
+  margin: 20px;
+  display: flex;
+  flex-direction: row;
+  gap: 30px;
+  background: 
+  linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)),
+  linear-gradient(135deg, #003333, #009999);
+  color: #FFCC99;
+  min-height: 100vh;
+}
+
+
+  .left-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .right-panel {
+    width: 300px;
+    font-family: "STZhongsong", "Times New Roman", serif;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  textarea, input[type="range"], input[type="color"] {
+    font-size: 16px;
+    font-family: "STZhongsong", "Times New Roman", serif;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    padding: 6px;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    width: 1000px;
+    height: 80px;
+    margin-bottom: 20px;
+    resize: none;
+  }
+
+  canvas {
+    border: 1px solid #ccc;
+    width: 1000px;
+    height: 350px;
+    margin-top: 0;
+    cursor: pointer;
+    border-radius: 12px;
+  }
+
+  label {
+    display: inline-block;
+    width: 130px;
+    margin-top: 8px;
+  }
+
+  .arrow-group {
+    margin-bottom: 10px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.6); /* 半透明黑色背景 */
+    transition: background-color 0.2s ease;
+  }
+
+  .arrow-group:hover {
+    background-color: black;
+  }
+
+  .selected {
+    background-color: black;
+  }
+
+  button {
+	  padding: 6px 12px;
+	  margin: 5px 5px 5px 0;
+	  border-radius: 10px;
+	  border: none;
+	  background-color: black;
+	  color: white;
+	  font-family: "STZhongsong", "Times New Roman", serif;
+	  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+	  cursor: pointer;
+	}
+
+	button:hover {
+	  background-color: #336666;
+	  transform: translateY(-2px);
+	  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+	}
+
+
+  #arrowContainer {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-top: 5px;
+    background: #f9f9f9;
+    border-radius: 10px;
+  }
+
+  #hiddenMath {
+    visibility: hidden;
+    position: absolute;
+    left: -9999px;
+  }
+  
+  footer {
+  text-align:center;
+  margin-top: 40px;
+  font-size: 14px;
+  color: black;
+  font-family: "STZhongsong", "Times New Roman", serif;
+}
+
+</style>
+
+
+
+
+  <!-- MathJax -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'none' },
+      startup: { typeset: false }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+  <div class="left-panel">
+    <h2>移位结构可视化</h2>
+
+    <label>句子：</label><br>
+    <textarea id="input">[a [c [b] [c^(m+[n]) ] [d_{<2>} ]]</textarea><br>
+
+    <canvas id="arrowCanvas" width="1000" height="350"></canvas>
+    <div id="hiddenMath"></div>
+	
+	<footer>
+  © 2025 Han&GPT.
+</footer>
+
+  </div>
+
+  <div class="right-panel">
+    <div>
+      <button onclick="addArrow()">添加箭头</button>
+	   <button onclick="removeArrow()">移除箭头</button>
+      <button onclick="draw()">绘制</button>
+	  <button onclick="undo()">返回</button>
+      <button onclick="clearAll()">一键清空</button>
+    </div>
+
+    <h3>箭头列表（点击选择箭头）</h3>
+    <div id="arrowContainer"></div>
+
+    <h3>设置当前选中箭头：</h3>
+    <label>起点 X 坐标：</label>
+    <input type="range" id="xStartControl" min="0" max="1000" value="100">
+    <span id="xStartVal"></span><br>
+
+    <label>终点 X 坐标：</label>
+    <input type="range" id="xEndControl" min="0" max="1000" value="80">
+    <span id="xEndVal"></span><br>
+
+    <label>箭头颜色：</label>
+    <input type="color" id="colorControl" value="#ff0000"><br>
+  </div>
+
+  <script>
+    let arrows = [];
+    let selectedArrowIndex = null;
+    let colorIndex = 0;
+    const defaultColors = ['#ff0000', '#0000ff', '#00aa00', '#ffa500'];
+    let historyStack = [];
+
+    function addArrow() {
+      arrows.push({ xStart: 120, xEnd: 76, color: defaultColors[colorIndex % defaultColors.length] });
+      colorIndex++;
+      historyStack.push(JSON.parse(JSON.stringify(arrows)));
+      renderArrowList();
+      draw();
+    }
+
+    function renderArrowList() {
+      const container = document.getElementById("arrowContainer");
+      container.innerHTML = '';
+      arrows.forEach((arrow, i) => {
+        const div = document.createElement("div");
+        div.className = "arrow-group" + (i === selectedArrowIndex ? " selected" : "");
+        div.textContent = `箭头 ${i + 1}（起点: ${arrow.xStart}px，终点: ${arrow.xEnd}px）`;
+        div.onclick = () => selectArrow(i);
+        container.appendChild(div);
+      });
+    }
+	
+	
+	function removeArrow() {
+	  if (selectedArrowIndex !== null) {
+		arrows.splice(selectedArrowIndex, 1); // 移除箭头
+		selectedArrowIndex = null;            // 清除选中状态
+		historyStack.push(JSON.parse(JSON.stringify(arrows))); // 存入历史
+		renderArrowList();
+		draw();
+	  }
+	}
+
+
+    function selectArrow(index) {
+      selectedArrowIndex = index;
+      const arrow = arrows[index];
+      document.getElementById("xStartControl").value = arrow.xStart;
+      document.getElementById("xEndControl").value = arrow.xEnd;
+      document.getElementById("colorControl").value = arrow.color;
+      updateDisplayValues();
+      renderArrowList();
+    }
+
+    function updateArrowProperty() {
+      if (selectedArrowIndex === null) return;
+      const xStart = parseInt(document.getElementById("xStartControl").value);
+      const xEnd = parseInt(document.getElementById("xEndControl").value);
+      const color = document.getElementById("colorControl").value;
+      arrows[selectedArrowIndex] = { xStart, xEnd, color };
+      updateDisplayValues();
+      historyStack.push(JSON.parse(JSON.stringify(arrows)));
+      renderArrowList();
+    }
+
+    function updateDisplayValues() {
+      document.getElementById("xStartVal").textContent = document.getElementById("xStartControl").value + "px";
+      document.getElementById("xEndVal").textContent = document.getElementById("xEndControl").value + "px";
+    }
+
+    function clearAll() {
+      document.getElementById("input").value = "";
+      arrows = [];
+      selectedArrowIndex = null;
+      document.getElementById("arrowContainer").innerHTML = "";
+      document.getElementById("hiddenMath").innerHTML = "";
+      const canvas = document.getElementById("arrowCanvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function undo() {
+      if (historyStack.length > 0) {
+        arrows = historyStack.pop();
+        selectedArrowIndex = null;
+        renderArrowList();
+        draw();
+      }
+    }
+
+    window.onload = () => {
+      document.getElementById("xStartControl").oninput = () => {
+        updateArrowProperty();
+        draw();
+      };
+      document.getElementById("xEndControl").oninput = () => {
+        updateArrowProperty();
+        draw();
+      };
+      document.getElementById("colorControl").oninput = () => {
+        updateArrowProperty();
+        draw();
+      };
+
+      const canvas = document.getElementById("arrowCanvas");
+      canvas.addEventListener("click", e => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        arrows.push({ xStart: x, xEnd: x, color: defaultColors[colorIndex % defaultColors.length] });
+        colorIndex++;
+        historyStack.push(JSON.parse(JSON.stringify(arrows)));
+        renderArrowList();
+        draw();
+      });
+    };
+
+    function draw() {
+      const inputRaw = document.getElementById("input").value;
+      const latexText = convertToLatex(inputRaw);
+      const latexExpr = `\\(\\LARGE ${latexText} \\)`;
+      const mathDiv = document.getElementById("hiddenMath");
+      mathDiv.innerHTML = latexExpr;
+
+      MathJax.typesetPromise([mathDiv]).then(() => {
+        const svgElement = mathDiv.querySelector("svg");
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = function () {
+          const canvas = document.getElementById("arrowCanvas");
+          const ctx = canvas.getContext("2d");
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          const yText = 40;
+          ctx.drawImage(img, 50, yText);
+
+          arrows.forEach(arrow => {
+            const offset = 5;
+            const yStart = yText + img.height + offset;
+            const yMid = yStart + 10;
+            const yEnd = yStart;
+
+            ctx.beginPath();
+            ctx.moveTo(arrow.xStart, yStart);
+            ctx.lineTo(arrow.xStart, yMid);
+            ctx.lineTo(arrow.xEnd, yMid);
+            ctx.lineTo(arrow.xEnd, yEnd);
+            ctx.strokeStyle = arrow.color;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            drawArrowhead(ctx, arrow.xEnd, yEnd, -Math.PI / 2, arrow.color);
+          });
+
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      });
+    }
+
+    function drawArrowhead(ctx, x, y, angle, color) {
+      const size = 7;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - size * Math.cos(angle - Math.PI / 6), y - size * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(x - size * Math.cos(angle + Math.PI / 6), y - size * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+
+    function convertToLatex(text) {
+      const escapeLatex = s =>
+        s.replace(/\\/g, '\\textbackslash ')
+         .replace(/</g, '\\lt ')
+         .replace(/>/g, '\\gt ')
+         .replace(/{/g, '\\{')
+         .replace(/}/g, '\\}');
+
+      let result = '';
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if ((ch === '_' || ch === '^') && i + 1 < text.length) {
+          let level = 0;
+          let j = i + 1;
+          let expr = '';
+
+          if (text[j] === '{' || text[j] === '[' || text[j] === '(') {
+            const open = text[j];
+            const close = { '{': '}', '[': ']', '(': ')' }[open];
+            expr += open;
+            j++;
+            while (j < text.length) {
+              expr += text[j];
+              if (text[j] === open) level++;
+              if (text[j] === close) {
+                if (level === 0) break;
+                else level--;
+              }
+              j++;
+            }
+            i = j;
+          } else {
+            while (j < text.length && /[a-zA-Z0-9+\-*/=<>\[\]{}]/.test(text[j])) {
+              expr += text[j++];
+            }
+            i = j - 1;
+          }
+
+          result += ch + '{' + escapeLatex(expr) + '}';
+        } else {
+          result += escapeLatex(ch);
+        }
+      }
+
+      return result;
+    }
+  </script>
+</body>
+</html>
