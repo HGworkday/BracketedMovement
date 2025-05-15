@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>移位结构可视化</title>
+  <title>移位结构可视化（多条箭头）</title>
   <style>
   body {
   font-family: "STZhongsong", "Times New Roman", serif;
@@ -54,7 +54,7 @@
 	}
 
 
-  textarea, input[type="range"], input[type="color"] {
+    textarea, input[type="range"], input[type="color"] {
     font-size: 16px;
     font-family: "STZhongsong", "Times New Roman", serif;
     border-radius: 10px;
@@ -79,7 +79,7 @@
     margin-top: 0;
     cursor: pointer;
     border-radius: 12px;
-    background-color: white;
+	background-color: #BEBEBE; 
   }
 
   label {
@@ -118,9 +118,9 @@
 	  cursor: pointer;
 	  
 	  width: auto;
-          max-width: 100%;
-          font-size: 1em;
-          white-space: nowrap;
+      max-width: 100%;
+      font-size: 1em;
+      white-space: nowrap;
 	}
 
 	button:hover {
@@ -130,7 +130,7 @@
 	}
 
 
-  #arrowContainer {
+    #arrowContainer {
     max-height: 200px;
     overflow-y: auto;
     border: 1px solid #ccc;
@@ -156,9 +156,6 @@
 
 </style>
 
-
-
-
   <!-- MathJax -->
   <script>
     window.MathJax = {
@@ -167,6 +164,7 @@
       startup: { typeset: false }
     };
   </script>
+    
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
@@ -179,7 +177,7 @@
     <canvas id="arrowCanvas" width="1000" height="350"></canvas>
     <div id="hiddenMath"></div>
 	
-	<footer>
+<footer>
   © 2025 Han&GPT.
 </footer>
 
@@ -193,7 +191,8 @@
   <div class="right-panel">
     <div>
       <button onclick="addArrow()">添加箭头</button>
-	   <button onclick="removeArrow()">移除箭头</button>
+	  <button onclick="addStrike()">添加删除线</button>
+	   <button onclick="removeArrow()">移除</button>
       <button onclick="draw()">绘制</button>
 	  <button onclick="undo()">返回</button>
       <button onclick="clearAll()">一键清空</button>
@@ -223,12 +222,20 @@
     let historyStack = [];
 
     function addArrow() {
-      arrows.push({ xStart: 120, xEnd: 76, color: defaultColors[colorIndex % defaultColors.length] });
-      colorIndex++;
-      historyStack.push(JSON.parse(JSON.stringify(arrows)));
-      renderArrowList();
-      draw();
-    }
+	  arrows.push({ type: "arrow", xStart: 120, xEnd: 76, color: defaultColors[colorIndex % defaultColors.length] });
+	  colorIndex++;
+	  historyStack.push(JSON.parse(JSON.stringify(arrows)));
+	  renderArrowList();
+	  draw();
+	}
+	function addStrike() {
+	  arrows.push({ type: "strike", xStart: 120, xEnd: 76, color: defaultColors[colorIndex % defaultColors.length] });
+	  colorIndex++;
+	  historyStack.push(JSON.stringify(arrows));
+	  renderArrowList();
+	  draw();
+	}
+
 
     function renderArrowList() {
       const container = document.getElementById("arrowContainer");
@@ -236,7 +243,9 @@
       arrows.forEach((arrow, i) => {
         const div = document.createElement("div");
         div.className = "arrow-group" + (i === selectedArrowIndex ? " selected" : "");
-        div.textContent = `箭头 ${i + 1}（起点: ${arrow.xStart}px，终点: ${arrow.xEnd}px）`;
+        div.textContent = (arrow.type === "strike" ? "删除线" : "箭头") + 
+  ` ${i + 1}（起点: ${arrow.xStart}px，终点: ${arrow.xEnd}px）`;
+
         div.onclick = () => selectArrow(i);
         container.appendChild(div);
       });
@@ -269,7 +278,8 @@
       const xStart = parseInt(document.getElementById("xStartControl").value);
       const xEnd = parseInt(document.getElementById("xEndControl").value);
       const color = document.getElementById("colorControl").value;
-      arrows[selectedArrowIndex] = { xStart, xEnd, color };
+      const current = arrows[selectedArrowIndex];
+      arrows[selectedArrowIndex] = { ...current, xStart, xEnd, color };
       updateDisplayValues();
       historyStack.push(JSON.parse(JSON.stringify(arrows)));
       renderArrowList();
@@ -293,7 +303,7 @@
 
     function undo() {
       if (historyStack.length > 0) {
-        arrows = historyStack.pop();
+        historyStack.push(JSON.parse(JSON.stringify(arrows)));
         selectedArrowIndex = null;
         renderArrowList();
         draw();
@@ -319,7 +329,7 @@
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        arrows.push({ xStart: x, xEnd: x, color: defaultColors[colorIndex % defaultColors.length] });
+        arrows.push({ type: "arrow", xStart: x, xEnd: x, color: defaultColors[colorIndex % defaultColors.length] });
         colorIndex++;
         historyStack.push(JSON.parse(JSON.stringify(arrows)));
         renderArrowList();
@@ -347,27 +357,40 @@
                 canvas.height = 350;
           const ctx = canvas.getContext("2d");
           ctx.clearRect(0, 0, canvas.width, canvas.height);
+		  
 
           const yText = 40;
           ctx.drawImage(img, 50, yText);
 
           arrows.forEach(arrow => {
-            const offset = 5;
-            const yStart = yText + img.height + offset;
-            const yMid = yStart + 10;
-            const yEnd = yStart;
+		  if (arrow.type === "arrow") {
+			// 原箭头绘制逻辑...
+			const offset = 5;
+			const yStart = yText + img.height + offset;
+			const yMid = yStart + 10;
+			const yEnd = yStart;
 
-            ctx.beginPath();
-            ctx.moveTo(arrow.xStart, yStart);
-            ctx.lineTo(arrow.xStart, yMid);
-            ctx.lineTo(arrow.xEnd, yMid);
-            ctx.lineTo(arrow.xEnd, yEnd);
-            ctx.strokeStyle = arrow.color;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+			ctx.beginPath();
+			ctx.moveTo(arrow.xStart, yStart);
+			ctx.lineTo(arrow.xStart, yMid);
+			ctx.lineTo(arrow.xEnd, yMid);
+			ctx.lineTo(arrow.xEnd, yEnd);
+			ctx.strokeStyle = arrow.color;
+			ctx.lineWidth = 1.5;
+			ctx.stroke();
 
-            drawArrowhead(ctx, arrow.xEnd, yEnd, -Math.PI / 2, arrow.color);
-          });
+		drawArrowhead(ctx, arrow.xEnd, yEnd, -Math.PI / 2, arrow.color);
+		  } else if (arrow.type === "strike") {
+			const yStrike = yText + img.height / 2; // 字符中间高度
+			ctx.beginPath();
+			ctx.moveTo(arrow.xStart, yStrike);
+			ctx.lineTo(arrow.xEnd, yStrike);
+			ctx.strokeStyle = arrow.color;
+			ctx.lineWidth = 2;
+			ctx.stroke();
+		  }
+		});
+
 
           URL.revokeObjectURL(url);
         };
@@ -389,17 +412,17 @@
     function convertToLatex(text) {
       const escapeLatex = s =>
         s.replace(/\\/g, '\\textbackslash{}')
-         .replace(/#/g, '\\#')
-         .replace(/\$/g, '\\$')
-         .replace(/%/g, '\\%')
-         .replace(/&/g, '\\&')
-         .replace(/_/g, '\\_')
-         .replace(/{/g, '\\{')
-         .replace(/}/g, '\\}')
-	 .replace(/~/g, '\\sim')
-         .replace(/\^/g, '\\^{}')
-         .replace(/</g, '\\lt ')
-         .replace(/>/g, '\\gt ');
+    .replace(/#/g, '\\#')
+    .replace(/\$/g, '\\$')
+    .replace(/%/g, '\\%')
+    .replace(/&/g, '\\&')
+    .replace(/_/g, '\\_')
+    .replace(/{/g, '\\{')
+    .replace(/}/g, '\\}')
+	.replace(/~/g, '\\sim')
+    .replace(/\^/g, '\\^{}')
+    .replace(/</g, '\\lt ')
+    .replace(/>/g, '\\gt ');
 
       let result = '';
       for (let i = 0; i < text.length; i++) {
