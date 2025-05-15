@@ -183,7 +183,7 @@
   © 2025 Han&GPT.
 </footer>
 
-<button class="glow-button" onclick="window.location.href='https://hgworkday.github.io/BracketedMovement/index.html'">
+<button class="glow-button" onclick="window.location.href='https://hgworkday.github.io/BracketedMovement'">
   返回主页
 </button>
 
@@ -388,11 +388,18 @@
 
     function convertToLatex(text) {
       const escapeLatex = s =>
-        s.replace(/\\/g, '\\textbackslash ')
-         .replace(/</g, '\\lt ')
-         .replace(/>/g, '\\gt ')
+        s.replace(/\\/g, '\\textbackslash{}')
+         .replace(/#/g, '\\#')
+         .replace(/\$/g, '\\$')
+         .replace(/%/g, '\\%')
+         .replace(/&/g, '\\&')
+         .replace(/_/g, '\\_')
          .replace(/{/g, '\\{')
-         .replace(/}/g, '\\}');
+         .replace(/}/g, '\\}')
+	 .replace(/~/g, '\\sim')
+         .replace(/\^/g, '\\^{}')
+         .replace(/</g, '\\lt ')
+         .replace(/>/g, '\\gt ');
 
       let result = '';
       for (let i = 0; i < text.length; i++) {
